@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import math
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -117,6 +118,42 @@ def plot_predictions(X_test, y_test, y_pred, original_data):
     plt.tight_layout()
     plt.show()
 
+# Erlang C calculation
+def erlang_c(calls_offered, aht=500, target_sl=0.85, max_wait_time=30, shrinkage=0.35):
+    traffic_intensity = (calls_offered * aht) / 3600
+    staff = math.ceil(traffic_intensity)
+
+    while True:
+        occupancy = traffic_intensity / staff
+        if occupancy >= 1:
+            staff += 1
+            continue
+
+        erlang_c = (math.pow(traffic_intensity, staff) / math.factorial(staff)) * (1 / (1 - occupancy))
+        erlang_c /= sum(math.pow(traffic_intensity, n) / math.factorial(n) for n in range(staff)) + erlang_c
+        pw = erlang_c * math.exp(-(staff - traffic_intensity) * max_wait_time / aht)
+        actual_sl = 1 - pw
+
+        if actual_sl >= target_sl:
+            break
+
+        staff += 1
+
+    return math.ceil(staff / (1 - shrinkage))
+
+
+# Function to generate staffing recommendations
+def generate_staffing_recommendations(predictions, aht, target_sl, max_wait_time, shrinkage=0.3):
+    staffing = []
+    for _, row in predictions.iterrows():
+        calls_offered = row['calls_offered_predicted']
+        staff_needed = erlang_c(calls_offered, aht, target_sl, max_wait_time, shrinkage)
+        staffing.append(staff_needed)
+    
+    predictions['staff_required'] = staffing
+    return predictions
+
+
 # Function to generate future data for predictions
 def generate_future_dates(start_date, end_date):
     future_dates = pd.date_range(start=start_date, end=end_date)
@@ -160,31 +197,57 @@ def predict_future_calls(model, future_data_encoded, future_data, save_future_pr
     
     return future_data
 
-# Main function to run the steps
+# # Main function to run the steps
+# def main():
+#     file_path = 'phone_data.csv'  # Change this to the path of your data file
+#     data_encoded, original_data = load_and_preprocess_data(file_path)
+#     X_train, X_test, y_train, y_test = split_data(data_encoded)
+#     model, training_columns = train_model(X_train, y_train)  # Capture column names used during training
+#     y_pred = evaluate_model(model, X_test, y_test)
+#     save_predictions(X_test, y_test, y_pred)
+#     plot_predictions(X_test, y_test, y_pred, original_data)
+
+#     # Ask the user for future date interval for predictions
+#     start_date = input("Enter the start date for future predictions (YYYY-MM-DD): ")
+#     end_date = input("Enter the end date for future predictions (YYYY-MM-DD): ")
+
+#     future_data = generate_future_dates(start_date, end_date)
+#     future_data_encoded = align_columns_with_training(future_data, training_columns, data_encoded)
+    
+#     # Ask if user wants to save the future predictions
+#     save_future = input("Would you like to save the future predictions to a CSV file? (yes/no): ").strip().lower() == 'yes'
+    
+#     future_predictions = predict_future_calls(model, future_data_encoded, future_data, save_future_predictions=save_future)
+    
+#     # Display the future predictions
+#     print(future_predictions[['date', 'calls_offered_predicted']])
+
+# # Run the main function
+# if __name__ == "__main__":
+#     main()
+
+# Main function
 def main():
-    file_path = 'phone_data.csv'  # Change this to the path of your data file
+    file_path = 'phone_data.csv'
     data_encoded, original_data = load_and_preprocess_data(file_path)
     X_train, X_test, y_train, y_test = split_data(data_encoded)
-    model, training_columns = train_model(X_train, y_train)  # Capture column names used during training
+    model, training_columns = train_model(X_train, y_train)
     y_pred = evaluate_model(model, X_test, y_test)
     save_predictions(X_test, y_test, y_pred)
-    # plot_predictions(X_test, y_test, y_pred, original_data)
+    plot_predictions(X_test, y_test, y_pred, original_data)
 
-    # Ask the user for future date interval for predictions
-    start_date = input("Enter the start date for future predictions (YYYY-MM-DD): ")
-    end_date = input("Enter the end date for future predictions (YYYY-MM-DD): ")
+    start_date = input("Enter start date for future predictions (YYYY-MM-DD): ")
+    end_date = input("Enter end date for future predictions (YYYY-MM-DD): ")
+    future_data = pd.date_range(start=start_date, end=end_date)
+    future_predictions = pd.DataFrame({'date': future_data, 'calls_offered_predicted': y_pred[:len(future_data)]})
 
-    future_data = generate_future_dates(start_date, end_date)
-    future_data_encoded = align_columns_with_training(future_data, training_columns, data_encoded)
-    
-    # Ask if user wants to save the future predictions
-    save_future = input("Would you like to save the future predictions to a CSV file? (yes/no): ").strip().lower() == 'yes'
-    
-    future_predictions = predict_future_calls(model, future_data_encoded, future_data, save_future_predictions=save_future)
-    
-    # Display the future predictions
-    print(future_predictions[['date', 'calls_offered_predicted']])
+    aht = 300  # Average Handling Time (seconds)
+    target_sl = 0.8  # Target Service Level (80%)
+    max_wait_time = 20  # Max wait time (seconds)
+    shrinkage = 0.3  # Shrinkage factor
 
-# Run the main function
+    staffed_predictions = generate_staffing_recommendations(future_predictions, aht, target_sl, max_wait_time, shrinkage)
+    print(staffed_predictions)
+
 if __name__ == "__main__":
     main()
