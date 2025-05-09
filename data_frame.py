@@ -5,7 +5,6 @@ from sklearn.model_selection import train_test_split
 
 #Use this file to import and load data into data frame and split the training and test data
 
-
 # Load and preprocess the dataset, including historical features
 def load_data(file_path):
     data = pd.read_csv(file_path)
