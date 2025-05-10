@@ -28,12 +28,12 @@ def add_historical_features(data):
     data['day_of_year'] = data['date'].dt.dayofyear
     data['day_of_week'] = data['date'].dt.dayofweek
     # Create 'calls_offered_last_year' feature
-    data['calls_offered_last_year'] = data.apply(lambda row: 
-        data[(data['day_of_year'] == row['day_of_year']) & 
+    data['calls_offered_last_year'] = data.apply(lambda row:
+        data[(data['day_of_year'] == row['day_of_year']) &
         (data['year'] == row['year'] - 1)]['calls_offered'].mean(), axis=1)
     # Create 'calls_offered_avg_last_year' feature (average of similar days in previous year)
-    data['calls_offered_avg_last_year'] = data.apply(lambda row: 
-        data[(data['day_of_week'] == row['day_of_week']) & 
+    data['calls_offered_avg_last_year'] = data.apply(lambda row:
+        data[(data['day_of_week'] == row['day_of_week']) &
         (data['year'] == row['year'] - 1)]['calls_offered'].mean(), axis=1)
     # Fill NaN values in historical features with 0 (if no matching data from last year)
     data['calls_offered_last_year'].fillna(0, inplace=True)
