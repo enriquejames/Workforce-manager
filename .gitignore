@@ -14,3 +14,4 @@ dist/
 .DS_Store
 
 
+__pycache__/data_frame.cpython-310.pyc
