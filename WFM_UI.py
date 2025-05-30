@@ -6,8 +6,13 @@ import traceback
 from datetime import datetime
 
 # Import your existing functions from main.py
+
+from data_frame import (
+    load_data
+    , add_historical_features
+)
+
 from main import (
-    load_and_preprocess_data,
     train_model,
     evaluate_model,
     erlang_c,
